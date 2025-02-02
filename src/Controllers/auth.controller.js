@@ -122,112 +122,65 @@ const VerifyOtp = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { emailOrphone, password } = req.body;
-
-    // Validate input
-    if (!emailOrphone || !password) {
-      return res
-        .status(400)
-        .json(
-          new apiError(
-            false,
-            400,
-            null,
-            "Email/phone and password required",
-            true
-          )
-        );
-    }
-
-    // Find user
-    const user = await userModel.findOne({
-      $or: [{ email: emailOrphone }, { mobile: emailOrphone }],
-    });
-    if (!user) {
-      return res
-        .status(404)
-        .json(new apiError(false, 404, null, "User not found", true));
-    }
-
-    // Check verification
-    if (!user.isVerified) {
-      return res
-        .status(403)
-        .json(new apiError(false, 403, null, "Account not verified", true));
-    }
-
-    // Verify password
-    const isPasswordValid = await comparePassword(password, user.password);
-    if (!isPasswordValid) {
-      return res
-        .status(401)
-        .json(new apiError(false, 401, null, "Invalid credentials", true));
-    }
+    // ... existing login logic ...
 
     // Generate tokens
     const accessToken = await makeJWTToken({ id: user._id });
     const refreshToken = await makeRefreshToken({ id: user._id });
 
-    // Store refresh token (array for multiple devices)
-    user.refreshTokens.push(refreshToken);
-    await user.save();
-
-    // Set secure HTTP-only cookies
+    // Set cookies for web and return tokens in body for mobile
     return res
       .status(200)
       .cookie("accessToken", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        maxAge: 15 * 60 * 1000,
       })
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       })
-      .json(new apiResponse(true, { accessToken }, "Login successful", false));
+      .json(
+        new apiResponse(
+          true,
+          { accessToken, refreshToken },
+          "Login successful",
+          false
+        )
+      );
   } catch (error) {
-    return res
-      .status(500)
-      .json(new apiError(false, 500, null, "Login failed", true));
+    // ... error handling ...
   }
 };
 
 const refreshToken = async (req, res) => {
   try {
-    const oldRefreshToken = req.cookies.refreshToken;
+    const oldRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
     if (!oldRefreshToken) {
       return res
         .status(403)
         .json(new apiError(false, 403, null, "Refresh token required", true));
     }
 
-    // Verify token
+    // Verify without database check
     const decoded = jwt.verify(
       oldRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
     const user = await userModel.findById(decoded.id);
 
-    // Validate stored token
-    if (!user?.refreshTokens.includes(oldRefreshToken)) {
+    if (!user) {
       return res
-        .status(403)
-        .json(new apiError(false, 403, null, "Invalid refresh token", true));
+        .status(404)
+        .json(new apiError(false, 404, null, "User not found", true));
     }
 
     // Generate new tokens
     const newAccessToken = await makeJWTToken({ id: user._id });
     const newRefreshToken = await makeRefreshToken({ id: user._id });
 
-    // Rotate tokens (remove old, add new)
-    user.refreshTokens = user.refreshTokens.filter(
-      (token) => token !== oldRefreshToken
-    );
-    user.refreshTokens.push(newRefreshToken);
-    await user.save();
-
-    // Update cookies
     return res
       .status(200)
       .cookie("accessToken", newAccessToken, {
@@ -243,7 +196,10 @@ const refreshToken = async (req, res) => {
       .json(
         new apiResponse(
           true,
-          { accessToken: newAccessToken },
+          {
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+          },
           "Token refreshed",
           false
         )
@@ -255,36 +211,21 @@ const refreshToken = async (req, res) => {
   }
 };
 
-const logout = async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
+// const logout = async (req, res) => {
+//   try {
+//     // Clear cookies for web
+//     res.clearCookie("accessToken");
+//     res.clearCookie("refreshToken");
 
-    if (refreshToken) {
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.REFRESH_TOKEN_SECRET
-      );
-      const user = await userModel.findById(decoded.id);
+//     // Mobile clients should delete tokens from storage
+//     return res
+//       .status(200)
+//       .json(new apiResponse(true, null, "Logout successful", false));
+//   } catch (error) {
+//     return res
+//       .status(500)
+//       .json(new apiError(false, 500, null, "Logout failed", true));
+//   }
+// };
 
-      // Remove the specific refresh token
-      user.refreshTokens = user.refreshTokens.filter(
-        (token) => token !== refreshToken
-      );
-      await user.save();
-    }
-
-    // Clear cookies
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-
-    return res
-      .status(200)
-      .json(new apiResponse(true, null, "Logout successful", false));
-  } catch (error) {
-    return res
-      .status(500)
-      .json(new apiError(false, 500, null, "Logout failed", true));
-  }
-};
-
-module.exports = { userSignup, VerifyOtp, login, logout, refreshToken };
+module.exports = { userSignup, VerifyOtp, login, refreshToken };

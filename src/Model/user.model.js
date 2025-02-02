@@ -80,10 +80,10 @@ const userModel = new Schema(
     otpExpire: {
       type: Number,
     },
-    refreshTokens: {
-      type: [String],
-      default: [],
-    },
+    // refreshTokens: {
+    //   type: [String],
+    //   default: [],
+    // },
   },
   {
     timestamps: true,
