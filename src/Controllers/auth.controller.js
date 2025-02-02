@@ -116,7 +116,9 @@ const VerifyOtp = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json(new apiError(false, 500, null, "OTP verification failed", true));
+      .json(
+        new apiError(false, 500, null, `OTP verification failed ${error}`, true)
+      );
   }
 };
 
@@ -150,7 +152,17 @@ const login = async (req, res) => {
         )
       );
   } catch (error) {
-    // ... error handling ...
+    return res
+      .status(500)
+      .json(
+        new apiError(
+          false,
+          500,
+          null,
+          `Error from Login Controller ${error}`,
+          true
+        )
+      );
   }
 };
 
@@ -169,6 +181,12 @@ const refreshToken = async (req, res) => {
       oldRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
+    if (!decoded) {
+      return res
+        .status(404)
+        .json(new apiError(false, 404, null, "User not found", true));
+    }
+    // decode the Refresh old token
     const user = await userModel.findById(decoded.id);
 
     if (!user) {
@@ -207,7 +225,9 @@ const refreshToken = async (req, res) => {
   } catch (error) {
     return res
       .status(403)
-      .json(new apiError(false, 403, null, "Token refresh failed", true));
+      .json(
+        new apiError(false, 403, null, `Token refresh failed ${error}`, true)
+      );
   }
 };
 
