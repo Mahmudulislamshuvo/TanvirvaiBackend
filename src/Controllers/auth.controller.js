@@ -32,7 +32,7 @@ const userSignup = async (req, res) => {
     const existingUser = await userModel.findOne({
       $or: [{ email }, { mobile }],
     });
-    if (existingUser) {
+    if (!existingUser) {
       return res
         .status(409)
         .json(new apiError(false, 409, null, "User already exists", true));
@@ -42,7 +42,7 @@ const userSignup = async (req, res) => {
     const hashedPassword = await makeHashPassword(password);
 
     // Generate OTP
-    const otp = Otpnumbergenertor();
+    const otp = await Otpnumbergenertor();
     const otpExpireTime = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Save user to DB (unverified)
@@ -70,15 +70,15 @@ const userSignup = async (req, res) => {
   } catch (error) {
     return res
       .status(500)
-      .json(new apiError(false, 500, null, "Signup failed", true));
+      .json(new apiError(false, 500, null, `Signup failed ${error}`, true));
   }
 };
 
 const VerifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, Otp } = req.body;
 
-    if (!email || !otp) {
+    if (!email || !Otp) {
       return res
         .status(400)
         .json(new apiError(false, 400, null, "Email and OTP required", true));
@@ -93,7 +93,7 @@ const VerifyOtp = async (req, res) => {
     }
 
     // Check OTP validity
-    if (user.Otp !== parseInt(otp) || Date.now() > user.otpExpire) {
+    if (user.Otp !== parseInt(Otp) || Date.now() > user.otpExpire) {
       user.Otp = null;
       user.otpExpire = null;
       await user.save();
@@ -124,8 +124,32 @@ const VerifyOtp = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    // ... existing login logic ...
+    const { emailOrphone, password } = req.body;
+    if (!emailOrphone || !password) {
+      return res
+        .status(400)
+        .json(
+          new apiError(false, 400, null, "User credential Missing!!", true)
+        );
+    }
+    // check the user is valid or not
+    const loggedUser = await userModel.findOne({
+      $or: [{ email: emailOrphone }, { mobile: emailOrphone }],
+    });
 
+    // Password Checking
+    const IspasswordCorrect = await comparePassword(
+      password,
+      loggedUser?.password
+    );
+
+    if (!IspasswordCorrect) {
+      return res
+        .status(400)
+        .json(
+          new apiError(false, 400, null, "User credential Missing!!!!", true)
+        );
+    }
     // Generate tokens
     const accessToken = await makeJWTToken({ id: user._id });
     const refreshToken = await makeRefreshToken({ id: user._id });
@@ -248,4 +272,99 @@ const refreshToken = async (req, res) => {
 //   }
 // };
 
-module.exports = { userSignup, VerifyOtp, login, refreshToken };
+const resetPassword = async (req, res) => {
+  try {
+    const { emailOrphone, oldPassword, newPassword } = req.body;
+    for (let key in req.body) {
+      if (!req.body[key]) {
+        return res
+          .status(403)
+          .json(
+            new apiError(
+              false,
+              403,
+              null,
+              `Reset password Credential missing!!`,
+              true
+            )
+          );
+      }
+    }
+
+    if (!PasswordChecker(newPassword)) {
+      return res
+        .status(403)
+        .json(new apiError(false, 403, null, `password format invalid`, true));
+    }
+    const CheckUser = await userModel.findOne({
+      $or: [
+        { email: req.body.emailOrphone },
+        { mobile: req.body.emailOrphone },
+      ],
+    });
+
+    // check the old password with database
+    const IspasswordValid = await comparePassword(
+      req.body.oldPassword,
+      CheckUser?.password
+    );
+
+    if (!CheckUser || !IspasswordValid) {
+      return res
+        .status(403)
+        .json(new apiError(false, 403, null, `User not valid!!`, true));
+    }
+
+    // now hash new password and save it to database
+    const newHashpassword = await makeHashPassword(req.body.newPassword);
+    if (!newHashpassword) {
+      return res
+        .status(403)
+        .json(
+          new apiError(false, 403, null, `unable to hash the password`, true)
+        );
+    }
+    if (newHashpassword) {
+      CheckUser.password = newHashpassword;
+      await CheckUser.save();
+      return res.status(201).json(
+        new apiResponse(
+          true,
+          {
+            data: {
+              name: CheckUser.firstName,
+              email: CheckUser.email,
+            },
+          },
+          "Password changed Successfull",
+          false
+        )
+      );
+    }
+    return res
+      .status(403)
+      .json(
+        new apiError(
+          false,
+          403,
+          null,
+          `unable to change the password try again`,
+          true
+        )
+      );
+  } catch (error) {
+    return res
+      .status(501)
+      .json(
+        new apiError(
+          false,
+          501,
+          null,
+          `Error from resetPassword Controller ${error}`,
+          true
+        )
+      );
+  }
+};
+
+module.exports = { userSignup, VerifyOtp, login, refreshToken, resetPassword };
