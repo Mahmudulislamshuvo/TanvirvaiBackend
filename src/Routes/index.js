@@ -3,8 +3,12 @@ const _ = express.Router();
 const { apiError } = require("../utils/apiError");
 const baseApi = process.env.BASE_API;
 const SignUpRoute = require("./api/user.apiRoutes");
+const productRoute = require("./api/product.ApiRoute");
+const categoryRoute = require("./api/category.apiRoute");
 
 _.use(baseApi, SignUpRoute);
+_.use(baseApi, productRoute);
+_.use(baseApi, categoryRoute);
 
 // For invalid Route
 _.use("*", (req, res) => {
