@@ -4,6 +4,7 @@ const {
   allCategory,
   getSingleCategory,
   updateCategory,
+  deleteCategory,
 } = require("../../Controllers/category.controller");
 const _ = express.Router();
 
@@ -19,5 +20,6 @@ _.route("/updatecategory/:id").put(
   upload.fields([{ name: "image", maxCount: 1 }]),
   updateCategory
 );
+_.route("/deletecategory/:id").delete(deleteCategory);
 
 module.exports = _;

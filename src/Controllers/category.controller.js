@@ -185,9 +185,59 @@ const updateCategory = async (req, res) => {
   }
 };
 
+const deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the category by ID
+    const category = await categoryModel.findById(id);
+    if (!category) {
+      return res
+        .status(404)
+        .json(new apiError(false, 404, null, `Category not found`, true));
+    }
+
+    // Delete the associated image from the local file system if it exists
+    if (category.image) {
+      const imageFileName = category.image.split("/").pop();
+      const imagePath = `public/uploads/${imageFileName}`;
+
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`Deleted image: ${imagePath}`);
+      } else {
+        console.log(`Image not found: ${imagePath}`);
+      }
+    }
+
+    // Delete the category from the database
+    await categoryModel.findByIdAndDelete(id);
+
+    return res
+      .status(200)
+      .json(
+        new apiResponse(true, category, "Category deleted successfully", false)
+      );
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return res
+      .status(500)
+      .json(
+        new apiError(
+          false,
+          500,
+          null,
+          `Error from deleteCategory controller: ${error.message}`,
+          true
+        )
+      );
+  }
+};
+
 module.exports = {
   createCategory,
   allCategory,
   getSingleCategory,
   updateCategory,
+  deleteCategory,
 };
