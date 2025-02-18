@@ -29,15 +29,64 @@ const userSignup = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await userModel.findOne({
-      $or: [{ email }, { mobile }],
-    });
+    const existingUser = await userModel.findOne({ email });
     if (!existingUser) {
       return res
         .status(409)
         .json(new apiError(false, 409, null, "User already exists", true));
     }
 
+    if (existingUser) {
+      if (existingUser.isVerified === false) {
+        // Generate a new OTP
+        const newOtp = await Otpnumbergenertor();
+        // Update the existing user with the new OTP and a new expiry time (10 minutes from now)
+        existingUser.Otp = newOtp;
+        existingUser.otpExpire = Date.now() + 10 * 60 * 1000;
+        await existingUser.save();
+
+        // Send the OTP email
+        const emailSent = await sendMail(email, newOtp);
+        if (!emailSent) {
+          return res
+            .status(401)
+            .json(
+              new apiError(
+                false,
+                401,
+                null,
+                "Unable to send OTP email. Please try again.",
+                true
+              )
+            );
+        }
+
+        return res
+          .status(409)
+          .json(
+            new apiError(
+              false,
+              409,
+              null,
+              "This email is already registered. We have resent the OTP to your email. Please verify your account.",
+              true
+            )
+          );
+      } else {
+        // User exists and is verified. Inform them to log in.
+        return res
+          .status(409)
+          .json(
+            new apiError(
+              false,
+              409,
+              null,
+              "This email is already registered. Please log in.",
+              true
+            )
+          );
+      }
+    }
     // Hash password
     const hashedPassword = await makeHashPassword(password);
 
