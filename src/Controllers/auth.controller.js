@@ -194,9 +194,10 @@ const login = async (req, res) => {
           new apiError(false, 400, null, "User credential Missing!!!!", true)
         );
     }
+
     // Generate tokens
-    const accessToken = await makeJWTToken({ id: user._id });
-    const refreshToken = await makeRefreshToken({ id: user._id });
+    const accessToken = await makeJWTToken({ id: loggedUser._id });
+    const refreshToken = await makeRefreshToken({ id: loggedUser._id });
 
     // Set cookies for web and return tokens in body for mobile
     return res
