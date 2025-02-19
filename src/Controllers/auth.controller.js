@@ -136,11 +136,17 @@ const VerifyOtp = async (req, res) => {
         .json(new apiError(false, 404, null, "User not found", true));
     }
 
-    // Check OTP validity
-    if (user.Otp !== parseInt(Otp) || Date.now() > user.otpExpire) {
+    if (Date.now() > user.otpExpire) {
       user.Otp = null;
       user.otpExpire = null;
       await user.save();
+      // send error
+      return res
+        .status(400)
+        .json(new apiError(false, 400, null, "Invalid/expired OTP", true));
+    }
+    if (user.Otp !== parseInt(Otp)) {
+      // Check OTP validity
       return res
         .status(400)
         .json(new apiError(false, 400, null, "Invalid/expired OTP", true));
