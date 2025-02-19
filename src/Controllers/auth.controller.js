@@ -29,12 +29,7 @@ const userSignup = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await userModel.findOne({ email });
-    if (!existingUser) {
-      return res
-        .status(409)
-        .json(new apiError(false, 409, null, "User already exists", true));
-    }
+    const existingUser = await userModel.findOne({ email: email });
 
     if (existingUser) {
       if (existingUser.isVerified === false) {
