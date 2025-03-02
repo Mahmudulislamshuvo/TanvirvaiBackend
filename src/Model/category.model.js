@@ -1,3 +1,4 @@
+// models/category.model.js
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -12,16 +13,10 @@ const categoryModel = new Schema({
     required: true,
     trim: true,
   },
-  //   subCategory: [
-  //     {
-  //       type: Schema.Types.ObjectId,
-  //       ref: "subcategory",
-  //     },
-  //   ],
   product: [
     {
       type: Schema.Types.ObjectId,
-      ref: "products",
+      ref: "product",
     },
   ],
   isActive: {

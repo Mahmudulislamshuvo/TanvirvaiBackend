@@ -10,16 +10,16 @@ const _ = express.Router();
 
 const { upload } = require("../../Middleware/multer.middleware");
 
-_.route("/createcategory").post(
+_.route("/category/create").post(
   upload.fields([{ name: "image", maxCount: 1 }]),
   createCategory
 );
-_.route("/getallcategory").get(allCategory);
-_.route("/getsinglecategory/:id").get(getSingleCategory);
-_.route("/updatecategory/:id").put(
+_.route("/category/getall").get(allCategory);
+_.route("/category/single/:id").get(getSingleCategory);
+_.route("/category/update/:id").put(
   upload.fields([{ name: "image", maxCount: 1 }]),
   updateCategory
 );
-_.route("/deletecategory/:id").delete(deleteCategory);
+_.route("/category/delete/:id").delete(deleteCategory);
 
 module.exports = _;

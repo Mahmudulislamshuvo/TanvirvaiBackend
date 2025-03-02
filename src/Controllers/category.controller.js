@@ -6,7 +6,7 @@ const fs = require("fs");
 
 const createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, category, productType, variants } = req.body;
     if (!name || !description) {
       return res
         .status(401)
